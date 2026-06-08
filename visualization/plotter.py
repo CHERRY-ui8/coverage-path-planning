@@ -11,6 +11,7 @@
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from typing import List, Tuple, Dict, Optional
@@ -18,19 +19,21 @@ import os
 
 
 # 中文字体配置（macOS）
+_cjk_font_found = False
 for _f in ['Heiti SC', 'Heiti TC', 'STSong', 'Songti SC',
            'PingFang SC', 'Apple SD Gothic Neo']:
     try:
-        _p = matplotlib.font_manager.findfont(
-            _f, fallback_to_default=False
-        )
+        _p = fm.findfont(_f, fallback_to_default=False)
         plt.rcParams['font.sans-serif'] = [_f] + \
             [x for x in plt.rcParams.get('font.sans-serif', [])
              if x != _f]
+        _cjk_font_found = True
         break
     except Exception:
         continue
 plt.rcParams['axes.unicode_minus'] = False
+if _cjk_font_found:
+    print(f"[Plotter] CJK font activated: {plt.rcParams['font.sans-serif'][0]}")
 
 
 # 自定义颜色方案
@@ -65,10 +68,6 @@ class CoveragePlotter:
         """
         self.figsize = figsize
         self.dpi = dpi
-
-        # 中文字体回退（若系统不支持则使用英文）
-        plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial']
-        plt.rcParams['axes.unicode_minus'] = False
 
     def plot_all(
         self,
