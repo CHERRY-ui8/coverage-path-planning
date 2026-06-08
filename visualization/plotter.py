@@ -118,21 +118,28 @@ class CoveragePlotter:
         多算法对比图。
 
         版面 (4 rows × 3 cols)：
-          Row 0  [  Original Map (full width)                ]
-          Row 1  [ A* Greedy label  │ Trajectory  │ Heatmap ]
-          Row 2  [ BCD       label  │ Trajectory  │ Heatmap ]
-          Row 3  [ STC       label  │ Trajectory  │ Heatmap ]
+          Row 0  [  Original Map (full width)                    ]
+          Row 1  [ A* Greedy  │ Coverage Trajectory │ Coverage Order ]
+          Row 2  [ BCD        │       (shared)      │    (shared)     ]
+          Row 3  [ STC        │       (shared)      │    (shared)     ]
 
-        不含表头标题，不含数据指标。
-        热力图使用统一配色尺度。
+        图幅比例根据地图形状自适应（宽地图→偏宽，方地图→偏方）。
+        列标题只出现在第一行，三行共用。
         """
         n = len(results)
-        fig = plt.figure(figsize=(self.figsize[0] * 2.5,
-                                  self.figsize[1] * 0.85))
+        h, w = grid.shape
+        # map aspect ratio, clamped to avoid extreme stretching
+        ar = w / h
+        # target figure aspect: layout_width_ratio * ar + label_column
+        target_ar = max(1.8, min(2.07 * ar, 3.5))
+        fig_w = self.figsize[0] * 2.2
+        fig_h = fig_w / target_ar
+
+        fig = plt.figure(figsize=(fig_w, fig_h))
         gs = GridSpec(n + 1, 3,
-                      height_ratios=[0.25] + [0.25] * n,
-                      width_ratios=[0.07, 1, 1],
-                      hspace=0.12, wspace=0.12)
+                      height_ratios=[0.22] + [0.26] * n,
+                      width_ratios=[0.06, 1, 1],
+                      hspace=0.10, wspace=0.10)
 
         # Row 0: original map
         ax_map = fig.add_subplot(gs[0, :])
@@ -143,21 +150,27 @@ class CoveragePlotter:
         max_path_len = max(len(results[p][0]) for p in pl_names)
 
         for i, planner_name in enumerate(pl_names):
-            path, covered, metrics = results[planner_name]
+            path, covered, _ = results[planner_name]
             row = i + 1
 
             # Algorithm label
             ax_lbl = fig.add_subplot(gs[row, 0])
             self._plot_algo_label(ax_lbl, planner_name)
 
-            # Trajectory
+            # Trajectory (title only on first row)
             ax_traj = fig.add_subplot(gs[row, 1])
-            self._plot_coverage_path(ax_traj, grid, path, covered)
+            self._plot_coverage_path(
+                ax_traj, grid, path, covered,
+                show_title=(i == 0)
+            )
 
-            # Heatmap (unified vmax)
+            # Heatmap (title only on first row)
             ax_heat = fig.add_subplot(gs[row, 2])
-            self._plot_coverage_heatmap(ax_heat, grid, path, covered,
-                                        vmin=0, vmax=max_path_len)
+            self._plot_coverage_heatmap(
+                ax_heat, grid, path, covered,
+                vmin=0, vmax=max_path_len,
+                show_title=(i == 0)
+            )
 
         plt.tight_layout()
         os.makedirs(output_dir, exist_ok=True)
@@ -186,6 +199,7 @@ class CoveragePlotter:
         grid: np.ndarray,
         path: List[Tuple[int, int]],
         covered: np.ndarray,
+        show_title: bool = True,
     ) -> None:
         height, width = grid.shape
 
@@ -229,7 +243,9 @@ class CoveragePlotter:
             ax.legend(loc='upper right', fontsize=self._legend_fs,
                       framealpha=0.85, edgecolor='#cccccc')
 
-        ax.set_title('Coverage Trajectory', fontsize=self._title_fs, pad=4)
+        if show_title:
+            ax.set_title('Coverage Trajectory',
+                         fontsize=self._title_fs, pad=4)
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -271,6 +287,7 @@ class CoveragePlotter:
         covered: np.ndarray,
         vmin: float = 0.0,
         vmax: Optional[float] = None,
+        show_title: bool = True,
     ) -> None:
         height, width = grid.shape
         vmax = vmax or float(len(path))
@@ -290,7 +307,9 @@ class CoveragePlotter:
                 display[y, x] = colours[idx]
 
         ax.imshow(display, interpolation='nearest')
-        ax.set_title('Coverage Order', fontsize=self._title_fs, pad=4)
+        if show_title:
+            ax.set_title('Coverage Order',
+                         fontsize=self._title_fs, pad=4)
         ax.set_xticks([])
         ax.set_yticks([])
 
