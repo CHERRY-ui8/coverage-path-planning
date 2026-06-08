@@ -605,7 +605,37 @@ class BCDCoverage:
 
             current_pos = full_path[-1]
 
+        # ── post-process: fill any remaining jumps with A* paths ──
+        full_path = self._smooth_path(grid, full_path)
+
         return full_path
+
+    def _smooth_path(
+        self, grid: np.ndarray, raw_path: List[Tuple[int, int]]
+    ) -> List[Tuple[int, int]]:
+        """
+        用 A* 短路径替换原始路径中的非相邻跳跃。
+        确保完整路径中任意连续两步均 4-连通相邻。
+        """
+        if len(raw_path) < 2:
+            return raw_path
+        smoothed = [raw_path[0]]
+        for i in range(1, len(raw_path)):
+            prev = smoothed[-1]
+            curr = raw_path[i]
+            d = abs(prev[0] - curr[0]) + abs(prev[1] - curr[1])
+            if d <= 1:
+                if prev != curr:
+                    smoothed.append(curr)
+            else:
+                link = self._astar_connect(grid, prev, curr)
+                if link:
+                    for p in link[1:]:
+                        if p != smoothed[-1]:
+                            smoothed.append(p)
+                else:
+                    smoothed.append(curr)
+        return smoothed
 
     def _boustrophedon_path(
         self, grid: np.ndarray, cell: Cell
