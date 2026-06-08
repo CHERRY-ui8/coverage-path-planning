@@ -143,7 +143,7 @@ class CoveragePlotter:
         gs = GridSpec(n + 1, 3,
                       height_ratios=[0.22] + [0.26] * n,
                       width_ratios=[0.04, 1, 1],
-                      hspace=0.06, wspace=0.06)
+                      hspace=0.08, wspace=0.06)
 
         # Row 0: original map
         ax_map = fig.add_subplot(gs[0, :])
@@ -168,13 +168,24 @@ class CoveragePlotter:
                 show_title=(i == 0)
             )
 
-            # Heatmap (title only on first row)
+            # Heatmap — no individual colorbar; shared one below
             ax_heat = fig.add_subplot(gs[row, 2])
             self._plot_coverage_heatmap(
                 ax_heat, grid, path, covered,
                 vmin=0, vmax=max_path_len,
-                show_title=(i == 0)
+                show_title=(i == 0),
+                add_cbar=False,
             )
+
+        # ── shared colour bar on the right ──
+        if max_path_len > 0:
+            norm_obj = plt.Normalize(vmin=0, vmax=max_path_len)
+            sm = plt.cm.ScalarMappable(cmap=COVERAGE_CMAP, norm=norm_obj)
+            sm.set_array([])
+            cax = fig.add_axes([0.915, 0.30, 0.012, 0.45])
+            cbar = fig.colorbar(sm, cax=cax)
+            cbar.set_label('Coverage Order\n(early → late)',
+                           fontsize=self._cbar_fs)
 
         plt.tight_layout()
         os.makedirs(output_dir, exist_ok=True)
@@ -191,7 +202,6 @@ class CoveragePlotter:
 
     def _plot_raw_map(self, ax: plt.Axes, grid: np.ndarray) -> None:
         ax.imshow(grid, cmap='gray_r', interpolation='nearest')
-        ax.set_title('Original Map', fontsize=self._title_fs, pad=4)
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -292,6 +302,7 @@ class CoveragePlotter:
         vmin: float = 0.0,
         vmax: Optional[float] = None,
         show_title: bool = True,
+        add_cbar: bool = True,
     ) -> None:
         height, width = grid.shape
         vmax = vmax or float(len(path))
@@ -317,8 +328,8 @@ class CoveragePlotter:
         ax.set_xticks([])
         ax.set_yticks([])
 
-        # Shared colour bar (only on the last heatmap in comparison)
-        if vmax and vmax > 0:
+        # Colour bar (optional, for comparison plot we use a shared one)
+        if add_cbar and vmax and vmax > 0:
             norm_obj = plt.Normalize(vmin=0, vmax=max(vmax, 1))
             sm = plt.cm.ScalarMappable(cmap=COVERAGE_CMAP, norm=norm_obj)
             sm.set_array([])
