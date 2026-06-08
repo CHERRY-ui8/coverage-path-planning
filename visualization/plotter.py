@@ -68,10 +68,11 @@ class CoveragePlotter:
         """
         self.figsize = figsize
         self.dpi = dpi
-        self._title_fs = 14     # 子图标题
-        self._suptitle_fs = 18  # 总标题
-        self._label_fs = 11     # 坐标轴标签
-        self._info_fs = 10      # 图注信息
+        self._title_fs = 24     # 子图标题（原文12→14→24）
+        self._suptitle_fs = 30  # 总标题（原文16→18→30）
+        self._label_fs = 18     # 坐标轴标签（原文默认→11→18）
+        self._info_fs = 16      # 图注信息（原文8→10→16）
+        self._cbar_fs = 16      # 颜色条（原文8→10→16）
         self._cbar_fs = 10      # 颜色条
 
     def plot_all(
@@ -103,11 +104,11 @@ class CoveragePlotter:
         """
         height, width = grid.shape
 
-        fig, axes = plt.subplots(1, 3, figsize=(self.figsize[0] * 1.8,
-                                                  self.figsize[1]))
+        fig, axes = plt.subplots(1, 3, figsize=(self.figsize[0] * 2.2,
+                                                  self.figsize[1] * 0.55))
         fig.suptitle(
             f"{planner_name} — {self._format_map_name(map_name)}",
-            fontsize=self._suptitle_fs, fontweight='bold', y=0.98
+            fontsize=self._suptitle_fs, fontweight='bold', y=1.02
         )
 
         # 1. 原始地图
@@ -119,7 +120,7 @@ class CoveragePlotter:
         # 3. 覆盖顺序热力图
         self._plot_coverage_heatmap(axes[2], grid, path, covered)
 
-        plt.tight_layout(rect=[0, 0, 1, 0.96])
+        plt.tight_layout(rect=[0, 0, 1, 0.92])
 
         # 保存
         os.makedirs(output_dir, exist_ok=True)
@@ -140,7 +141,7 @@ class CoveragePlotter:
     def _plot_raw_map(self, ax: plt.Axes, grid: np.ndarray) -> None:
         """绘制原始占据栅格地图。"""
         ax.imshow(grid, cmap='gray_r', interpolation='nearest')
-        ax.set_title('原始地图 (Occupancy Grid)', fontsize=self._title_fs, pad=8)
+        ax.set_title('原始地图 (Occupancy Grid)', fontsize=self._title_fs, pad=12)
         ax.set_xlabel('列 (x)', fontsize=self._label_fs)
         ax.set_ylabel('行 (y)', fontsize=self._label_fs)
         ax.set_xticks([])
@@ -212,7 +213,7 @@ class CoveragePlotter:
                     color='red', markeredgecolor='white',
                     markeredgewidth=1.5, label='终点')
 
-        ax.set_title('覆盖轨迹', fontsize=self._title_fs, pad=8)
+        ax.set_title('覆盖轨迹', fontsize=self._title_fs, pad=12)
         ax.set_xlabel('列 (x)', fontsize=self._label_fs)
         ax.set_ylabel('行 (y)', fontsize=self._label_fs)
         ax.set_xticks([])
@@ -282,7 +283,7 @@ class CoveragePlotter:
         ax.imshow(display, interpolation='nearest')
 
         # 添加上色说明
-        ax.set_title('覆盖顺序热力图 (紫→黄=先→后)', fontsize=self._title_fs, pad=8)
+        ax.set_title('覆盖顺序热力图 (紫→黄=先→后)', fontsize=self._title_fs, pad=12)
         ax.set_xlabel('列 (x)', fontsize=self._label_fs)
         ax.set_ylabel('行 (y)', fontsize=self._label_fs)
         ax.set_xticks([])
@@ -322,7 +323,7 @@ class CoveragePlotter:
         n_algos = len(results)
         fig, axes = plt.subplots(
             n_algos, 3,
-            figsize=(self.figsize[0] * 1.5, self.figsize[1] * n_algos * 0.6)
+            figsize=(self.figsize[0] * 2.0, self.figsize[1] * n_algos * 0.8)
         )
 
         if n_algos == 1:
@@ -352,7 +353,7 @@ class CoveragePlotter:
             # 第三列：热力图
             self._plot_coverage_heatmap(axes[row, 2], grid, path, covered)
 
-        plt.tight_layout(rect=[0, 0, 1, 0.96])
+        plt.tight_layout(rect=[0, 0, 1, 0.92])
 
         os.makedirs(output_dir, exist_ok=True)
         filename = f"comparison_{map_name}.png"
