@@ -141,9 +141,9 @@ class CoveragePlotter:
 
         fig = plt.figure(figsize=(fig_w, fig_h))
         gs = GridSpec(n + 1, 3,
-                      height_ratios=[0.22] + [0.26] * n,
+                      height_ratios=[0.20] + [0.26] * n,
                       width_ratios=[0.04, 1, 1],
-                      hspace=0.08, wspace=0.06)
+                      hspace=0.14, wspace=0.06)
 
         # Row 0: original map
         ax_map = fig.add_subplot(gs[0, :])
