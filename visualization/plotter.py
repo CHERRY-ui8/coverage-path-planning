@@ -127,19 +127,23 @@ class CoveragePlotter:
         列标题只出现在第一行，三行共用。
         """
         n = len(results)
-        h, w = grid.shape
-        # map aspect ratio, clamped to avoid extreme stretching
-        ar = w / h
-        # target figure aspect: layout_width_ratio * ar + label_column
-        target_ar = max(1.8, min(2.07 * ar, 3.5))
-        fig_w = self.figsize[0] * 2.2
-        fig_h = fig_w / target_ar
+        h_map, w_map = grid.shape
+        # ── compute figure size so trajectory subplot has ~0.055 in/cell ──
+        # GridSpec: label=0.06, traj=1, heat=1 → total_width=2.06
+        #            map=0.22, 3×algo=0.26×3 → total_height=1.0
+        # traj subplot: width_ratio=1/2.06, height_ratio=0.26
+        # aspect constraint: (fig_w/2.06) / (fig_h*0.26) = w_map/h_map
+        # → fig_h = fig_w * h_map / (2.06 * 0.26 * w_map)
+        cell_inches = 0.075
+        fig_w = w_map * cell_inches * 2.06
+        fig_h = fig_w * h_map / (2.06 * 0.26 * w_map)
+        fig_h = max(fig_h, 3.5)
 
         fig = plt.figure(figsize=(fig_w, fig_h))
         gs = GridSpec(n + 1, 3,
                       height_ratios=[0.22] + [0.26] * n,
-                      width_ratios=[0.06, 1, 1],
-                      hspace=0.10, wspace=0.10)
+                      width_ratios=[0.04, 1, 1],
+                      hspace=0.06, wspace=0.06)
 
         # Row 0: original map
         ax_map = fig.add_subplot(gs[0, :])
