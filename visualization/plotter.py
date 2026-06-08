@@ -1,12 +1,10 @@
 """
 全覆盖路径规划结果可视化模块
 
-三类图表：
+三类图表（仅可视化内容，不含数据表格）：
 1. 原始占据栅格地图
-2. 覆盖轨迹图（带方向箭头的折线 + 起/终图例）
+2. 覆盖轨迹图（带方向箭头 + 起/终图例）
 3. 覆盖顺序热力图（统一配色尺度）
-
-所有图表使用统一风格，高分辨率 PNG 输出。
 """
 
 import numpy as np
@@ -19,7 +17,7 @@ from matplotlib.gridspec import GridSpec
 from typing import List, Tuple, Dict, Optional
 import os
 
-# ── CJK font config ──────────────────────────────────────
+# ── CJK font config
 _cjk_font_found = False
 for _f in ['Heiti SC', 'Heiti TC', 'STSong', 'Songti SC',
            'PingFang SC', 'Apple SD Gothic Neo']:
@@ -36,7 +34,6 @@ plt.rcParams['axes.unicode_minus'] = False
 if _cjk_font_found:
     print(f"[Plotter] CJK font activated: {plt.rcParams['font.sans-serif'][0]}")
 
-# ── Colour maps ───────────────────────────────────────────
 COVERAGE_CMAP = LinearSegmentedColormap.from_list(
     'coverage_heat',
     ['#440154', '#3b528b', '#21918c', '#5ec962', '#fde725'],
@@ -49,30 +46,21 @@ PLANNER_LABELS = {
     'stc':          'STC',
 }
 
-MAP_LABELS = {
-    'empty':            'Empty Room',
-    'sparse_obstacles': 'Sparse Obstacles',
-    'dense_obstacles':  'Dense Obstacles',
-    'corridor':         'Corridor',
-    'multi_room':       'Multi-Room',
-}
-
 
 class CoveragePlotter:
-    """全覆盖路径规划结果可视化器。"""
+    """全覆盖路径规划结果可视化器 — 仅可视化，不含数据文字。"""
 
     def __init__(self, figsize: Tuple[int, int] = (12, 8), dpi: int = 150):
         self.figsize = figsize
         self.dpi = dpi
-        self._title_fs = 26       # 子图标题
-        self._suptitle_fs = 32    # 总标题 / 算法行标题
-        self._label_fs = 20       # 坐标轴标签
-        self._info_fs = 18        # 图注 / 表格文字
-        self._cbar_fs = 18        # 颜色条
-        self._algo_fs = 28        # 对比图算法名标签
+        self._title_fs = 16
+        self._label_fs = 13
+        self._legend_fs = 11
+        self._cbar_fs = 12
+        self._algo_fs = 14
 
     # ================================================================
-    #  Single-algorithm panel  (plot_all)
+    #  Single algorithm panel
     # ================================================================
 
     def plot_all(
@@ -87,24 +75,13 @@ class CoveragePlotter:
         show: bool = False
     ) -> str:
         """
-        单算法三视图面板。
-        版面：上排 3 张图（原始地图 / 覆盖轨迹 / 热力图）
-              下排横贯底部的指标卡片。
+        单算法三视图：原始地图 | 覆盖轨迹 | 覆盖顺序热力图。
+        不含表头标题，不含数据指标。
         """
-        height, width = grid.shape
         fig = plt.figure(figsize=(self.figsize[0] * 2.4,
-                                  self.figsize[1] * 0.70),
-                         constrained_layout=False)
-        gs = GridSpec(2, 3, height_ratios=[1, 0.12],
-                      hspace=0.25, wspace=0.20)
+                                  self.figsize[1] * 0.55))
+        gs = GridSpec(1, 3, wspace=0.22)
 
-        fig.suptitle(
-            f"{PLANNER_LABELS.get(planner_name, planner_name)}  —  "
-            f"{self._format_map_name(map_name)}",
-            fontsize=self._suptitle_fs, fontweight='bold', y=1.02
-        )
-
-        # Row 0: three views
         ax_map = fig.add_subplot(gs[0, 0])
         ax_traj = fig.add_subplot(gs[0, 1])
         ax_heat = fig.add_subplot(gs[0, 2])
@@ -114,12 +91,7 @@ class CoveragePlotter:
         self._plot_coverage_heatmap(ax_heat, grid, path, covered,
                                     vmin=0, vmax=len(path))
 
-        # Row 1: metrics bar (spanning full width)
-        ax_metrics = fig.add_subplot(gs[1, :])
-        self._plot_metrics_bar(ax_metrics, metrics)
-
-        plt.tight_layout(rect=[0, 0, 1, 0.93])
-
+        plt.tight_layout()
         os.makedirs(output_dir, exist_ok=True)
         filename = f"{map_name}_{planner_name}.png"
         filepath = os.path.join(output_dir, filename)
@@ -131,7 +103,7 @@ class CoveragePlotter:
         return filepath
 
     # ================================================================
-    #  Comparison panel  (plot_comparison)
+    #  Comparison panel  (multiple algorithms)
     # ================================================================
 
     def plot_comparison(
@@ -143,59 +115,51 @@ class CoveragePlotter:
         output_dir: str
     ) -> str:
         """
-        多算法对比面板。
+        多算法对比图。
 
-        版面 (4 rows × 3 cols GridSpec)：
-          Row 0  [  Original Map (col 0–2, full width)  ]
-          Row 1  [  A* Greedy label  │  Trajectory  │  Heatmap  ]
-          Row 2  [  BCD    label     │  Trajectory  │  Heatmap  ]
-          Row 3  [  STC    label     │  Trajectory  │  Heatmap  ]
+        版面 (4 rows × 3 cols)：
+          Row 0  [  Original Map (full width)                ]
+          Row 1  [ A* Greedy label  │ Trajectory  │ Heatmap ]
+          Row 2  [ BCD       label  │ Trajectory  │ Heatmap ]
+          Row 3  [ STC       label  │ Trajectory  │ Heatmap ]
 
-        每行左侧纵列显示算法名 + 核心指标。
-        热力图使用统一配色尺度（以最长路径归一化）。
+        不含表头标题，不含数据指标。
+        热力图使用统一配色尺度。
         """
-        n = len(results)  # 3
-        fig = plt.figure(figsize=(self.figsize[0] * 2.6,
-                                  self.figsize[1] * 1.1),
-                         constrained_layout=False)
+        n = len(results)
+        fig = plt.figure(figsize=(self.figsize[0] * 2.5,
+                                  self.figsize[1] * 0.85))
         gs = GridSpec(n + 1, 3,
-                      height_ratios=[0.55] + [1.0] * n,
-                      width_ratios=[0.20, 1, 1],
-                      hspace=0.25, wspace=0.20)
+                      height_ratios=[0.25] + [0.25] * n,
+                      width_ratios=[0.07, 1, 1],
+                      hspace=0.12, wspace=0.12)
 
-        fig.suptitle(
-            f"Algorithm Comparison — {self._format_map_name(map_name)}",
-            fontsize=self._suptitle_fs, fontweight='bold', y=1.02
-        )
-
-        # ── Row 0: original map (full width) ──
+        # Row 0: original map
         ax_map = fig.add_subplot(gs[0, :])
         self._plot_raw_map(ax_map, grid)
 
-        # ── Rows 1-3: per-algorithm ──
+        # Unified heatmap scale
         pl_names = list(results.keys())
-        # Determine unified heatmap range
         max_path_len = max(len(results[p][0]) for p in pl_names)
 
         for i, planner_name in enumerate(pl_names):
             path, covered, metrics = results[planner_name]
             row = i + 1
 
-            # Column 0: algorithm label + metrics
+            # Algorithm label
             ax_lbl = fig.add_subplot(gs[row, 0])
-            self._plot_algo_label(ax_lbl, planner_name, metrics)
+            self._plot_algo_label(ax_lbl, planner_name)
 
-            # Column 1: coverage trajectory
+            # Trajectory
             ax_traj = fig.add_subplot(gs[row, 1])
             self._plot_coverage_path(ax_traj, grid, path, covered)
 
-            # Column 2: heatmap (unified vmax)
+            # Heatmap (unified vmax)
             ax_heat = fig.add_subplot(gs[row, 2])
             self._plot_coverage_heatmap(ax_heat, grid, path, covered,
                                         vmin=0, vmax=max_path_len)
 
-        plt.tight_layout(rect=[0, 0, 1, 0.94])
-
+        plt.tight_layout()
         os.makedirs(output_dir, exist_ok=True)
         filename = f"comparison_{map_name}.png"
         filepath = os.path.join(output_dir, filename)
@@ -205,22 +169,16 @@ class CoveragePlotter:
         return filepath
 
     # ================================================================
-    #  Sub-plotting helpers
+    #  Sub-plot helpers
     # ================================================================
 
-    # ── raw map ────────────────────────────────────────────
-
     def _plot_raw_map(self, ax: plt.Axes, grid: np.ndarray) -> None:
-        """原始占据栅格地图。"""
         ax.imshow(grid, cmap='gray_r', interpolation='nearest')
-        ax.set_title('Original Map\n(Occupancy Grid)',
-                     fontsize=self._title_fs, pad=14)
-        ax.set_xlabel('Column (x)', fontsize=self._label_fs)
-        ax.set_ylabel('Row (y)', fontsize=self._label_fs)
+        ax.set_title('Original Map', fontsize=self._title_fs, pad=4)
         ax.set_xticks([])
         ax.set_yticks([])
 
-    # ── coverage trajectory with direction arrows ──────────
+    # ── trajectory with direction arrows ─────────────────
 
     def _plot_coverage_path(
         self,
@@ -229,18 +187,8 @@ class CoveragePlotter:
         path: List[Tuple[int, int]],
         covered: np.ndarray,
     ) -> None:
-        """
-        覆盖轨迹图。
-
-        - 深灰 = 障碍物
-        - 浅绿半透明 = 已覆盖
-        - 蓝→红渐变折线 = 路径（方向）
-        - 白色箭头 = 遍历方向标记
-        - ● 蓝 = 起点  ■ 红 = 终点
-        """
         height, width = grid.shape
 
-        # Background
         display = np.zeros((height, width, 3))
         display[grid == 0] = [1, 1, 1]
         display[grid == 1] = [0.2, 0.2, 0.2]
@@ -251,11 +199,11 @@ class CoveragePlotter:
             display[mask] = 0.3 * display[mask] + 0.7 * overlay[mask]
         ax.imshow(display, interpolation='nearest')
 
-        # ── path line with colour gradient ──
+        # Path line with colour gradient (blue → red)
         if len(path) > 1:
             path_arr = np.array(path)
             n_seg = len(path) - 1
-            step = max(1, n_seg // 250)
+            step = max(1, n_seg // 200)
             for i in range(0, n_seg, step):
                 i_end = min(i + step + 1, len(path))
                 seg = path_arr[i:i_end]
@@ -263,76 +211,57 @@ class CoveragePlotter:
                     c = i / max(n_seg, 1)
                     ax.plot(seg[:, 1], seg[:, 0],
                             color=(c, 0.15, 1.0 - c),
-                            linewidth=1.5, alpha=0.85)
+                            linewidth=1.2, alpha=0.85)
 
-        # ── direction arrows ──
+        # Direction arrows
         self._add_direction_arrows(ax, path)
 
-        # ── start / end markers with legend ──
+        # Start / End markers with legend
         if path:
             sy, sx = path[0]
-            ax.plot(sx, sy, marker='o', markersize=12,
+            ax.plot(sx, sy, marker='o', markersize=8,
                     color='#0077ff', markeredgecolor='white',
-                    markeredgewidth=2, label='Start')
+                    markeredgewidth=1.5, label='Start')
             ey, ex = path[-1]
-            ax.plot(ex, ey, marker='s', markersize=12,
+            ax.plot(ex, ey, marker='s', markersize=8,
                     color='#ff3333', markeredgecolor='white',
-                    markeredgewidth=2, label='End')
-            ax.legend(loc='upper right', fontsize=self._info_fs,
+                    markeredgewidth=1.5, label='End')
+            ax.legend(loc='upper right', fontsize=self._legend_fs,
                       framealpha=0.85, edgecolor='#cccccc')
 
-        ax.set_title('Coverage Trajectory\n(with direction arrows)',
-                     fontsize=self._title_fs, pad=14)
-        ax.set_xlabel('Column (x)', fontsize=self._label_fs)
-        ax.set_ylabel('Row (y)', fontsize=self._label_fs)
+        ax.set_title('Coverage Trajectory', fontsize=self._title_fs, pad=4)
         ax.set_xticks([])
         ax.set_yticks([])
 
-    # ── direction arrows ──────────────────────────────
-
     def _add_direction_arrows(
         self, ax: plt.Axes, path: List[Tuple[int, int]],
-        num_arrows: int = 22
+        num_arrows: int = 20
     ) -> None:
-        """
-        沿路径添加白色方向箭头。
-
-        Args:
-            ax:           matplotlib Axes
-            path:         路径坐标序列 [(row, col), ...]
-            num_arrows:   箭头总数（均匀分布）
-        """
         n = len(path)
         if n < 40:
             return
         gap = max(1, n // num_arrows)
-        # half-gap used to compute local orientation
         hg = max(1, gap // 3)
-
         for i in range(gap, n - hg, gap):
-            # local direction vector
             y1, x1 = path[i - hg]
             y2, x2 = path[i + hg]
             dy = y2 - y1
             dx = x2 - x1
             if dy == 0 and dx == 0:
                 continue
-            # normalize to unit step
             norm = max(abs(dy), abs(dx))
             dy, dx = dy / norm, dx / norm
-
-            # short white arrow centred at path[i]
-            mid_y, mid_x = path[i]
-            arr_len = 0.35
+            my, mx = path[i]
+            al = 0.35
             ax.annotate(
-                '', xy=(mid_x + dx * arr_len, mid_y + dy * arr_len),
-                xytext=(mid_x - dx * arr_len, mid_y - dy * arr_len),
+                '', xy=(mx + dx * al, my + dy * al),
+                xytext=(mx - dx * al, my - dy * al),
                 arrowprops=dict(arrowstyle='->', color='white',
-                                lw=2.5, alpha=0.95),
+                                lw=2.0, alpha=0.92),
                 annotation_clip=False
             )
 
-    # ── coverage heatmap ───────────────────────────────────
+    # ── heatmap ──────────────────────────────────────────
 
     def _plot_coverage_heatmap(
         self,
@@ -343,118 +272,56 @@ class CoveragePlotter:
         vmin: float = 0.0,
         vmax: Optional[float] = None,
     ) -> None:
-        """
-        覆盖顺序热力图。
-
-        Args:
-            vmin, vmax: 统一配色范围（用于对比图多张热力图对齐）。
-        """
         height, width = grid.shape
-
         vmax = vmax or float(len(path))
-        order_full = np.full((height, width), np.nan, dtype=float)
+        order = np.full((height, width), np.nan, dtype=float)
         for i, (y, x) in enumerate(path):
-            if np.isnan(order_full[y, x]):
-                order_full[y, x] = float(i)
+            if np.isnan(order[y, x]):
+                order[y, x] = float(i)
 
-        # Display array
         display = np.ones((height, width, 3))
         display[grid == 1] = [0.15, 0.15, 0.15]
 
-        covered_mask = ~np.isnan(order_full) & (grid == 0)
-        if np.any(covered_mask):
-            normed = np.clip(order_full / max(vmax, 1), 0, 1)
-            colours = COVERAGE_CMAP(normed[covered_mask])[:, :3]
-            for idx, (y, x) in enumerate(zip(*np.where(covered_mask))):
+        mask = ~np.isnan(order) & (grid == 0)
+        if np.any(mask):
+            normed = np.clip(order / max(vmax, 1), 0, 1)
+            colours = COVERAGE_CMAP(normed[mask])[:, :3]
+            for idx, (y, x) in enumerate(zip(*np.where(mask))):
                 display[y, x] = colours[idx]
 
         ax.imshow(display, interpolation='nearest')
-        ax.set_title('Coverage Order\n(purple → yellow)',
-                     fontsize=self._title_fs, pad=14)
-        ax.set_xlabel('Column (x)', fontsize=self._label_fs)
-        ax.set_ylabel('Row (y)', fontsize=self._label_fs)
+        ax.set_title('Coverage Order', fontsize=self._title_fs, pad=4)
         ax.set_xticks([])
         ax.set_yticks([])
 
-        # Colour bar
-        norm_obj = plt.Normalize(vmin=0, vmax=1)
-        sm = plt.cm.ScalarMappable(cmap=COVERAGE_CMAP, norm=norm_obj)
-        sm.set_array([])
-        cbar = ax.figure.colorbar(sm, ax=ax, shrink=0.75, pad=0.03)
-        cbar.set_label('Coverage Order (early → late)',
-                       fontsize=self._cbar_fs)
+        # Shared colour bar (only on the last heatmap in comparison)
+        if vmax and vmax > 0:
+            norm_obj = plt.Normalize(vmin=0, vmax=max(vmax, 1))
+            sm = plt.cm.ScalarMappable(cmap=COVERAGE_CMAP, norm=norm_obj)
+            sm.set_array([])
+            cbar = ax.figure.colorbar(sm, ax=ax, shrink=0.7, pad=0.02)
+            cbar.set_label('Early → Late', fontsize=self._cbar_fs)
 
-    # ── metrics bar (for plot_all) ─────────────────────────
-
-    def _plot_metrics_bar(
-        self, ax: plt.Axes, metrics: Dict[str, float]
-    ) -> None:
-        """
-        横贯底部的指标卡片。
-        显示：覆盖率 / 路径长度 / 覆盖效率 / 转弯次数 / 运行时间
-        """
-        ax.axis('off')
-        items = [
-            ("Coverage Rate",
-             f"{metrics.get('coverage_rate', 0) * 100:.1f}%"),
-            ("Path Length",
-             f"{metrics.get('path_length', 0)}"),
-            ("Coverage Efficiency",
-             f"{metrics.get('coverage_efficiency', 0):.3f}"),
-            ("Turns",
-             f"{metrics.get('num_turns', 0)}"),
-            ("Runtime",
-             f"{metrics.get('runtime', 0):.3f}s"),
-        ]
-
-        text = '    │    '.join(f'{k}:  {v}' for k, v in items)
-        ax.text(0.5, 0.5, text, transform=ax.transAxes,
-                fontsize=self._info_fs, ha='center', va='center',
-                fontfamily='monospace',
-                bbox=dict(boxstyle='round,pad=0.6',
-                          facecolor='#f0f0f0', edgecolor='#cccccc'))
-
-    # ── algorithm label column (for comparison) ────────────
+    # ── algorithm name label (minimal, no metrics) ────────
 
     def _plot_algo_label(
-        self,
-        ax: plt.Axes,
-        planner_name: str,
-        metrics: Dict[str, float],
+        self, ax: plt.Axes, planner_name: str,
     ) -> None:
-        """
-        对比图左侧纵列：算法名 + 核心指标。
-        """
         ax.axis('off')
         label = PLANNER_LABELS.get(planner_name, planner_name)
-        lines = [
-            f"{label}",
-            "",
-            f"Coverage:  {metrics.get('coverage_rate', 0)*100:.1f}%",
-            f"Length:    {metrics.get('path_length', 0)}",
-            f"Turns:     {metrics.get('num_turns', 0)}",
-            f"Runtime:   {metrics.get('runtime', 0):.2f}s",
-        ]
-        text = '\n'.join(lines)
-        ax.text(0.5, 0.5, text, transform=ax.transAxes,
+        ax.text(0.5, 0.5, label,
                 fontsize=self._algo_fs, fontweight='bold',
-                ha='center', va='center',
-                fontfamily='monospace',
-                bbox=dict(boxstyle='round,pad=0.5',
-                          facecolor='#fafafa', edgecolor='#dddddd'))
+                ha='center', va='center')
 
     # ================================================================
-    #  Utilities
+    #  Utility
     # ================================================================
 
     @staticmethod
     def _format_map_name(name: str) -> str:
-        """snake_case → display title."""
         mapping = {
-            'empty':            'Empty Room',
-            'sparse_obstacles': 'Sparse Obstacles',
-            'dense_obstacles':  'Dense Obstacles',
-            'corridor':         'Corridor',
-            'multi_room':       'Multi-Room',
+            'empty': 'Empty Room', 'sparse_obstacles': 'Sparse Obstacles',
+            'dense_obstacles': 'Dense Obstacles', 'corridor': 'Corridor',
+            'multi_room': 'Multi-Room',
         }
         return mapping.get(name, name.replace('_', ' ').title())
