@@ -68,6 +68,11 @@ class CoveragePlotter:
         """
         self.figsize = figsize
         self.dpi = dpi
+        self._title_fs = 14     # 子图标题
+        self._suptitle_fs = 18  # 总标题
+        self._label_fs = 11     # 坐标轴标签
+        self._info_fs = 10      # 图注信息
+        self._cbar_fs = 10      # 颜色条
 
     def plot_all(
         self,
@@ -102,7 +107,7 @@ class CoveragePlotter:
                                                   self.figsize[1]))
         fig.suptitle(
             f"{planner_name} — {self._format_map_name(map_name)}",
-            fontsize=16, fontweight='bold', y=0.98
+            fontsize=self._suptitle_fs, fontweight='bold', y=0.98
         )
 
         # 1. 原始地图
@@ -135,9 +140,9 @@ class CoveragePlotter:
     def _plot_raw_map(self, ax: plt.Axes, grid: np.ndarray) -> None:
         """绘制原始占据栅格地图。"""
         ax.imshow(grid, cmap='gray_r', interpolation='nearest')
-        ax.set_title('原始地图 (Occupancy Grid)', fontsize=12, pad=8)
-        ax.set_xlabel('列 (x)')
-        ax.set_ylabel('行 (y)')
+        ax.set_title('原始地图 (Occupancy Grid)', fontsize=self._title_fs, pad=8)
+        ax.set_xlabel('列 (x)', fontsize=self._label_fs)
+        ax.set_ylabel('行 (y)', fontsize=self._label_fs)
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -207,9 +212,9 @@ class CoveragePlotter:
                     color='red', markeredgecolor='white',
                     markeredgewidth=1.5, label='终点')
 
-        ax.set_title('覆盖轨迹', fontsize=12, pad=8)
-        ax.set_xlabel('列 (x)')
-        ax.set_ylabel('行 (y)')
+        ax.set_title('覆盖轨迹', fontsize=self._title_fs, pad=8)
+        ax.set_xlabel('列 (x)', fontsize=self._label_fs)
+        ax.set_ylabel('行 (y)', fontsize=self._label_fs)
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -223,7 +228,7 @@ class CoveragePlotter:
             )
             ax.text(
                 0.02, 0.02, info, transform=ax.transAxes,
-                fontsize=8, verticalalignment='bottom',
+                fontsize=self._info_fs, verticalalignment='bottom',
                 bbox=dict(boxstyle='round,pad=0.5',
                           facecolor='white', alpha=0.8)
             )
@@ -277,9 +282,9 @@ class CoveragePlotter:
         ax.imshow(display, interpolation='nearest')
 
         # 添加上色说明
-        ax.set_title('覆盖顺序热力图 (紫→黄=先→后)', fontsize=12, pad=8)
-        ax.set_xlabel('列 (x)')
-        ax.set_ylabel('行 (y)')
+        ax.set_title('覆盖顺序热力图 (紫→黄=先→后)', fontsize=self._title_fs, pad=8)
+        ax.set_xlabel('列 (x)', fontsize=self._label_fs)
+        ax.set_ylabel('行 (y)', fontsize=self._label_fs)
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -288,7 +293,7 @@ class CoveragePlotter:
         sm = plt.cm.ScalarMappable(cmap=COVERAGE_CMAP, norm=norm)
         sm.set_array([])
         cbar = plt.colorbar(sm, ax=ax, shrink=0.8, pad=0.02)
-        cbar.set_label('覆盖顺序 (先→后)', fontsize=8)
+        cbar.set_label('覆盖顺序 (先→后)', fontsize=self._cbar_fs)
 
     # ------------------------------------------------------------------
     # 批量可视化
@@ -325,7 +330,7 @@ class CoveragePlotter:
 
         fig.suptitle(
             f"算法对比 — {self._format_map_name(map_name)}",
-            fontsize=16, fontweight='bold', y=0.98
+            fontsize=self._suptitle_fs, fontweight='bold', y=0.98
         )
 
         for row, (planner_name, (path, covered, metrics)) in enumerate(
@@ -341,7 +346,7 @@ class CoveragePlotter:
                 axes[row, 1], grid, path, covered, metrics
             )
             axes[row, 1].set_ylabel(
-                planner_name, fontsize=10, fontweight='bold'
+                planner_name, fontsize=self._label_fs, fontweight='bold'
             )
 
             # 第三列：热力图
